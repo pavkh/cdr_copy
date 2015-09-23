@@ -50,6 +50,7 @@ def ftp_flow(config):
 			
 		print (cdr_list_roam)
 		print (cdr_list_local)
+		
 
 
 	return
