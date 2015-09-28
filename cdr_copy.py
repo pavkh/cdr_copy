@@ -3,6 +3,8 @@
 import os
 import ftplib
 import time
+import shutil
+import glob
 conffile="cdr_copy.conf"
 cdr_list_local=[]
 cdr_list_roam=[]
@@ -28,6 +30,22 @@ def config_read(config):
 	conf_cursor.close()
 	return result_dict
 
+def movefiles(config):
+	cdr_list_roam=glob.glob('tmp/' + config['cdr_wildcard_roam'] + '*')
+	cdr_list_local=glob.glob('tmp/' + config['cdr_wildcard_local'] + '*')
+	if len(cdr_list_roam) > 0:
+		for filename in cdr_list_roam:
+			print ('Moving ' + filename + ' to BRT roam('+config['brt_dir_roam']+')')
+			shutil.move(filename,config['brt_dir_roam'])
+	if len(cdr_list_local) > 0:
+		for filename in cdr_list_local:
+			print ('Moving ' + filename + ' to BRT local('+config['brt_dir_local']+')')
+			shutil.move(filename,config['brt_dir_local'])
+
+
+
+	return
+
 def ftp_flow(config):
 	global cdr_list_local
 	global cdr_list_roam
@@ -43,14 +61,24 @@ def ftp_flow(config):
 		print ('Ftp directory ' + config['ftp_dir'] + ' was not found on server')
 		return
 	while 1:
-        	ftp_connection.retrlines('NLST ' + config['cdr_wildcard_local']+'*',cdr_list_local.append)
+		print('Scanning')
+		ftp_connection.retrlines('NLST ' + config['cdr_wildcard_local']+'*',cdr_list_local.append)
 		ftp_connection.retrlines('NLST ' + config['cdr_wildcard_roam'] + '*',cdr_list_roam.append)
-		time.sleep(float(config['rescan_time']))
+
 		if len(cdr_list_roam) > 0:
-			
-		print (cdr_list_roam)
-		print (cdr_list_local)
-		
+			for filename in cdr_list_roam:
+				print ('Processing '+filename)
+				ftp_connection.retrbinary('RETR '+filename,open('tmp/'+filename,'wb').write)
+				ftp_connection.delete(filename)
+		if len(cdr_list_local) > 0:
+			for filename in cdr_list_local:
+				print ('Processing '+filename)
+				ftp_connection.retrbinary('RETR '+filename,open('tmp/'+filename,'wb').write)
+				ftp_connection.delete(filename)
+		movefiles(config)
+		cdr_list_local=[]
+		cdr_list_roam=[]
+		time.sleep(float(config['rescan_time']))
 
 
 	return
