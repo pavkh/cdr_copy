@@ -10,11 +10,10 @@ cdr_list_local=[]
 cdr_list_roam=[]
 
 
-
-def config_read(config):
+def config_read(config_file):
 	result = []
 	try:
-		conf_cursor = open(config,'r');
+		conf_cursor = open(config_file,'r');
 	except IOError:
 		print ("config file "+config + " not found")
 		return
@@ -30,19 +29,33 @@ def config_read(config):
 	conf_cursor.close()
 	return result_dict
 
+def log(message):
+	message =  time.strftime("%d-%m-%Y %H:%M:%S: ", time.localtime()) + message + '\n'
+	print message
+	try:
+		logfile = open('logs/cdr_copy.log', 'a')
+		logfile.write(message)
+	except Exception:
+		print 'Cannot open logfile'
+		return
+	finally:
+		logfile.close()
+		return
+
+
+
+
 def movefiles(config):
 	cdr_list_roam=glob.glob('tmp/' + config['cdr_wildcard_roam'] + '*')
 	cdr_list_local=glob.glob('tmp/' + config['cdr_wildcard_local'] + '*')
 	if len(cdr_list_roam) > 0:
 		for filename in cdr_list_roam:
-			print ('Moving ' + filename + ' to BRT roam('+config['brt_dir_roam']+')')
+			log ('Moving ' + filename + ' to BRT roam('+config['brt_dir_roam']+')')
 			shutil.move(filename,config['brt_dir_roam'])
 	if len(cdr_list_local) > 0:
 		for filename in cdr_list_local:
-			print ('Moving ' + filename + ' to BRT local('+config['brt_dir_local']+')')
+			log ('Moving ' + filename + ' to BRT local('+config['brt_dir_local']+')')
 			shutil.move(filename,config['brt_dir_local'])
-
-
 
 	return
 
@@ -61,18 +74,18 @@ def ftp_flow(config):
 		print ('Ftp directory ' + config['ftp_dir'] + ' was not found on server')
 		return
 	while 1:
-		print('Scanning')
+		log ('Scanning \"' + config['ftp_dir'] + '\" folder on ftp server for CDR files')
 		ftp_connection.retrlines('NLST ' + config['cdr_wildcard_local']+'*',cdr_list_local.append)
 		ftp_connection.retrlines('NLST ' + config['cdr_wildcard_roam'] + '*',cdr_list_roam.append)
 
 		if len(cdr_list_roam) > 0:
 			for filename in cdr_list_roam:
-				print ('Processing '+filename)
+				log ('Processing '+filename)
 				ftp_connection.retrbinary('RETR '+filename,open('tmp/'+filename,'wb').write)
 				ftp_connection.delete(filename)
 		if len(cdr_list_local) > 0:
 			for filename in cdr_list_local:
-				print ('Processing '+filename)
+				log ('Processing '+filename)
 				ftp_connection.retrbinary('RETR '+filename,open('tmp/'+filename,'wb').write)
 				ftp_connection.delete(filename)
 		movefiles(config)
